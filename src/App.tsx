@@ -28,6 +28,8 @@ function App() {
   });
 
   useEffect(() => {
+    if (!files.length) return;
+
     async function pdfLoader() {
       const pdfArr = [];
       for (let i = 0; i < files.length; i++) {
