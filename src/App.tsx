@@ -27,9 +27,10 @@ function App() {
     return getItems('pdfs') || [];
   });
 
+  // const [isLoading, setIsLoading] = useState(false);
+
   useEffect(() => {
     if (!files.length) return;
-
     async function pdfLoader() {
       const pdfArr = [];
       for (let i = 0; i < files.length; i++) {
@@ -55,11 +56,8 @@ function App() {
   }, [files]);
 
   // file upload triger
-
   const [hasFileUploaded, setHasFileUploaded] = useState(false);
-
   const [zoom, setZoom] = useState(90);
-
   const [showModal, setShowModal] = useState<boolean>(false);
 
   const trigerModal = (value: 'open' | 'close') => {
@@ -85,6 +83,7 @@ function App() {
     setFiles(v);
     setHasFileUploaded(true);
   };
+
   let fabricPageIndex = 1;
   function renderPage(
     pdf: any,
@@ -360,6 +359,14 @@ function App() {
         ref={viewerRef}
         style={{ width: '100%' }}
       ></div>
+
+      {/* {isLoading && (
+        <div className="fixed inset-0 bg-black text-white bg-opacity-60 transition-opacity z-50 overflow-hidden h-screen w-full flex items-center justify-center">
+          <div className="bg-black px-4 py-2">
+            <h1 className="text-4xl text-white">Loading....</h1>
+          </div>
+        </div>
+      )} */}
     </>
   );
 }
