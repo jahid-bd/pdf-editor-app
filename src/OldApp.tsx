@@ -1,30 +1,90 @@
+import { PDFDocumentProxy } from 'pdfjs-dist';
+import { useEffect, useRef, useState } from 'react';
+
 import { fabric } from 'fabric';
-import { useEffect, useState } from 'react';
+import * as pdfjsLib from 'pdfjs-dist';
 import { v4 as uuidv4 } from 'uuid';
 import FileUploadModal from './components/FileUploadModal';
 import Header from './components/header';
-import useFabricCanvas from './hooks/useFabricCanvas';
-import useFileUpload from './hooks/useFileUpload';
-import usePdfLoading from './hooks/usePdfLoading';
-import { renderDeleteIcon } from './utils';
-import { getItemsByPage, injectItem, updateItem } from './utils/localstorage';
+import { convertDataURIToBinary, renderDeleteIcon } from './utils';
+import {
+  getItems,
+  getItemsByPage,
+  injectItem,
+  updateItem,
+} from './utils/localstorage';
+renderDeleteIcon();
 
-const App = () => {
-  renderDeleteIcon();
-  const { files, hasFileUploaded, handleUploadFile } =
-    useFileUpload(triggerModal);
-  const { loadedPdfs, totalPageCount } = usePdfLoading(files);
-  const { viewerRef, zoom, setZoom } = useFabricCanvas();
-  // const { showModal, triggerModal } = useModal();
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-  // modal trigger
+function App() {
+  // container where will render pages
+  const viewerRef = useRef<HTMLDivElement>(null);
+
+  // pdfjs formate state
+  const [loadedPdfs, setLoadedPdfs] = useState<PDFDocumentProxy[] | null>(null);
+
+  // uploaded file from user
+  const [files, setFiles] = useState<(File | string)[]>(() => {
+    return getItems('pdfs') || [];
+  });
+
+  // after uploading or getinng files from local storage save renderable loaded files in state
+  useEffect(() => {
+    if (!files.length) return;
+    async function pdfLoader() {
+      const pdfArr = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const pdf = await pdfjsLib.getDocument(
+          file instanceof File
+            ? URL.createObjectURL(file)
+            : convertDataURIToBinary(file)
+        ).promise;
+        setTotalPageCount((prevTotal) => prevTotal + pdf.numPages);
+        pdfArr.push(pdf);
+      }
+      setLoadedPdfs(pdfArr);
+    }
+    pdfLoader();
+
+    return () => {
+      loadedPdfs?.forEach((l) => {
+        l.destroy();
+      });
+      setLoadedPdfs(null);
+    };
+  }, [files]);
+
+  // file upload triger
+  const [hasFileUploaded, setHasFileUploaded] = useState(false);
+  const [zoom, setZoom] = useState(90);
   const [showModal, setShowModal] = useState<boolean>(false);
-  function triggerModal(value: 'open' | 'close') {
-    setShowModal(value === 'open');
-  }
+
+  const trigerModal = (value: 'open' | 'close') => {
+    value === 'open' ? setShowModal(true) : setShowModal(false);
+  };
+
+  const [totalPageCount, setTotalPageCount] = useState<number>(0);
 
   const dataTransfer = (t: string) => (e: any) =>
     e.dataTransfer.setData('type', t);
+
+  useEffect(() => {
+    const pdfs = getItems('pdfs');
+    if (pdfs && pdfs.length > 0) {
+      setHasFileUploaded(true);
+      return;
+    }
+    trigerModal('open');
+  }, []);
+
+  const handleUploadFile = (v: any) => {
+    trigerModal('close');
+    setFiles(v);
+    setHasFileUploaded(true);
+  };
 
   // render the all pdf pages
   let fabricPageIndex = 1;
@@ -286,7 +346,7 @@ const App = () => {
     <>
       <Header
         dataTransfer={dataTransfer}
-        trigerModal={triggerModal}
+        trigerModal={trigerModal}
         zoom={zoom}
         setZoom={setZoom}
         hasFiles={hasFileUploaded}
@@ -294,7 +354,8 @@ const App = () => {
       />
       {showModal && (
         <FileUploadModal
-          trigerModal={triggerModal}
+          trigerModal={trigerModal}
+          //   setFiles={(v: any) => setFiles(v)}
           handleUploadFile={handleUploadFile}
         />
       )}
@@ -305,6 +366,6 @@ const App = () => {
       ></div>
     </>
   );
-};
+}
 
 export default App;
